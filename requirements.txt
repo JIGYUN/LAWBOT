@@ -1,11 +1,16 @@
 fastapi
 uvicorn[standard]
 
+openai
+requests
+httpx
+
 qdrant-client
 
 langchain
 langchain-community
 langchain-openai
+langgraph
 
 python-dotenv
 pydantic
