@@ -2,25 +2,36 @@ name: render-keepalive
 
 on:
   schedule:
-    # 10분마다 (UTC 기준) :00 혼잡 피하려고 2분 오프셋
-    - cron: "2/10 * * * *"
+    - cron: "2/10 * * * *"  # 10분마다(UTC) / :00 피하려고 2분 오프셋
   workflow_dispatch: {}
 
 jobs:
   ping:
     runs-on: ubuntu-latest
-    timeout-minutes: 2
+    timeout-minutes: 6
     steps:
-      - name: Ping Render health endpoint
+      - name: Ping Render health endpoint (tolerate cold start)
         run: |
           URL="https://lawbot-1mpd.onrender.com/health"
           echo "Pinging: $URL"
 
-          curl -fsS \
-            --max-time 10 \
-            --retry 3 \
-            --retry-delay 2 \
-            -H "User-Agent: github-actions-render-keepalive" \
-            "$URL" > /dev/null
+          # 콜드스타트 대비: 점진적으로 기다리는 시간 증가
+          for t in 15 30 60 120; do
+            echo "Attempt max-time=${t}s"
+            code=$(curl -sS -L -o /dev/null -w "%{http_code}" \
+              --connect-timeout 10 \
+              --max-time "$t" \
+              -H "User-Agent: github-actions-render-keepalive" \
+              "$URL" || true)
 
-          echo "OK"
+            echo "HTTP $code"
+            if [ "$code" = "200" ]; then
+              echo "OK"
+              exit 0
+            fi
+
+            sleep 5
+          done
+
+          echo "FAILED: could not get 200 from $URL"
+          exit 1
