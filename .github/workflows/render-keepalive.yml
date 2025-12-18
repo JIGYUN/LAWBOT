@@ -1,0 +1,26 @@
+name: render-keepalive
+
+on:
+  schedule:
+    # 10분마다 (UTC 기준) :00 혼잡 피하려고 2분 오프셋
+    - cron: "2/10 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Ping Render health endpoint
+        run: |
+          URL="https://lawbot-1mpd.onrender.com/health"
+          echo "Pinging: $URL"
+
+          curl -fsS \
+            --max-time 10 \
+            --retry 3 \
+            --retry-delay 2 \
+            -H "User-Agent: github-actions-render-keepalive" \
+            "$URL" > /dev/null
+
+          echo "OK"
